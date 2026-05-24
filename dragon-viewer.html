@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dragon Viewer</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a12;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .title { font-size: 11px; letter-spacing: 0.12em; color: rgba(255,255,255,0.35); text-transform: uppercase; }
+  .badge { font-size: 10px; color: #ff6b35; border: 1px solid #ff6b35; padding: 2px 10px; border-radius: 3px; letter-spacing: 0.08em; }
+
+  #main { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+
+  #drop-zone {
+    border: 2px dashed rgba(255,107,53,0.4);
+    border-radius: 10px;
+    padding: 60px 80px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: #ff6b35;
+    background: rgba(255,107,53,0.06);
+  }
+  #drop-zone .icon { font-size: 48px; margin-bottom: 16px; }
+  #drop-zone .label { font-size: 13px; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 8px; }
+  #drop-zone .sub { font-size: 11px; color: rgba(255,255,255,0.25); }
+
+  model-viewer {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    --poster-color: transparent;
+    display: none;
+  }
+
+  #hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.06em;
+    pointer-events: none;
+    display: none;
+  }
+
+  #controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .ctrl-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.06em;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .ctrl-btn:hover { background: rgba(255,107,53,0.15); color: #ff6b35; border-color: rgba(255,107,53,0.4); }
+  .ctrl-btn.active { background: rgba(255,107,53,0.2); color: #ff6b35; border-color: #ff6b35; }
+
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <span class="title">3D Model Viewer</span>
+  <span class="badge" id="file-badge">no file loaded</span>
+</div>
+
+<div id="main">
+  <div id="drop-zone"
+    onclick="document.getElementById('file-input').click()"
+    ondragover="handleDragOver(event)"
+    ondragleave="handleDragLeave(event)"
+    ondrop="handleDrop(event)"
+  >
+    <div class="icon">🐉</div>
+    <div class="label">Drop your GLB file here</div>
+    <div class="sub">or click to browse &nbsp;·&nbsp; .glb / .gltf</div>
+  </div>
+
+  <model-viewer
+    id="mv"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+    environment-image="neutral"
+    exposure="1"
+  ></model-viewer>
+
+  <div id="hint">drag to rotate &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; right-click to pan</div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn active" id="btn-rotate" onclick="toggleRotate()">auto-rotate</button>
+  <button class="ctrl-btn" onclick="resetCamera()">reset camera</button>
+  <button class="ctrl-btn" onclick="toggleEnv()">toggle lighting</button>
+  <button class="ctrl-btn" onclick="document.getElementById('file-input').click()">load new file</button>
+</div>
+
+<input type="file" id="file-input" accept=".glb,.gltf" onchange="handleFile(event)">
+
+<script>
+  let autoRotate = true;
+  let envIndex = 0;
+  const envs = ['neutral', 'legacy', 'commerce'];
+  const mv = document.getElementById('mv');
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (file) loadModel(file);
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.add('drag-over');
+  }
+
+  function handleDragLeave() {
+    document.getElementById('drop-zone').classList.remove('drag-over');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadModel(file);
+  }
+
+  function loadModel(file) {
+    const url = URL.createObjectURL(file);
+    mv.src = url;
+    mv.style.display = 'block';
+    document.getElementById('drop-zone').style.display = 'none';
+    document.getElementById('file-badge').textContent = file.name;
+    document.getElementById('hint').style.display = 'block';
+  }
+
+  function toggleRotate() {
+    autoRotate = !autoRotate;
+    mv.autoRotate = autoRotate;
+    document.getElementById('btn-rotate').classList.toggle('active', autoRotate);
+  }
+
+  function resetCamera() {
+    mv.cameraOrbit = 'auto auto auto';
+    mv.cameraTarget = 'auto auto auto';
+    mv.fieldOfView = 'auto';
+  }
+
+  function toggleEnv() {
+    envIndex = (envIndex + 1) % envs.length;
+    mv.environmentImage = envs[envIndex];
+  }
+</script>
+</body>
+</html>
